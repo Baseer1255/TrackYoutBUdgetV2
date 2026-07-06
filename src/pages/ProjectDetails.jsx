@@ -19,6 +19,7 @@ import { exportToPDF } from '../lib/pdf';
 import { parseCSV, formatTransactionsForDb } from '../lib/csv';
 import { scanReceipt } from '../lib/ocr';
 import { useExchangeRates } from '../hooks/useExchangeRates';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 
 export default function ProjectDetails() {
   const { id } = useParams();
@@ -45,6 +46,7 @@ export default function ProjectDetails() {
     setTimeout(() => setToast(null), 3000);
   };
   const { rates, loading: ratesLoading, convert } = useExchangeRates();
+  const { notify } = usePushNotifications();
 
   // For charts
   const [categoryData, setCategoryData] = useState([]);
@@ -71,13 +73,18 @@ export default function ProjectDetails() {
         }, {});
         setCategoryData(Object.entries(categoryTotals).map(([name, value]) => ({ name, value })));
 
-        // Aggregate for Monthly Trend Bar Chart
+        // Aggregate for Monthly Trend Bar Chart — sorted chronologically
+        const MONTH_ORDER = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
         const monthlyTotals = txRes.data.reduce((acc, tx) => {
           const month = new Date(tx.created_at).toLocaleString('default', { month: 'short' });
           acc[month] = (acc[month] || 0) + Number(tx.amount);
           return acc;
         }, {});
-        setTrendData(Object.entries(monthlyTotals).map(([name, amount]) => ({ name, amount })).reverse());
+        setTrendData(
+          Object.entries(monthlyTotals)
+            .map(([name, amount]) => ({ name, amount }))
+            .sort((a, b) => MONTH_ORDER.indexOf(a.name) - MONTH_ORDER.indexOf(b.name))
+        );
       }
     } catch (err) {
       console.error('Error fetching details:', err);
@@ -469,6 +476,11 @@ export default function ProjectDetails() {
         onClose={() => setIsExpenseModalOpen(false)} 
         projectId={id}
         onExpenseAdded={fetchProjectData}
+        onBudgetAlert={(category, message) => {
+          showToast(`⚠️ Budget alert: ${category} is near its limit!`);
+          // Also send a browser push notification
+          if (notify) notify('Budget Alert 🚨', `${category} is approaching its spending limit!`);
+        }}
       />
     </div>
   );

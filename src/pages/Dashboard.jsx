@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import { Plus, Wallet, Loader2, Trophy, ArrowRight, Radio } from 'lucide-react';
 import CreateProjectModal from '../components/CreateProjectModal';
+import NetWorthCard from '../components/NetWorthCard';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -176,6 +177,9 @@ export default function Dashboard() {
 
         {/* Sidebar Area */}
         <div className="space-y-6">
+        {/* Net Worth Card */}
+          <NetWorthCard />
+
           {/* Leaderboard/Stats Widget */}
           <div className="bg-card rounded-xl border border-border p-5 shadow-sm">
             <div className="flex items-center gap-2 mb-4 text-primary">

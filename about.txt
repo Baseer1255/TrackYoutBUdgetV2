@@ -1,0 +1,19 @@
+TrackYourBudget v2
+==================
+
+TrackYourBudget is a modern, real-time personal finance and expense tracking application designed to help users manage their money, track shared expenses, and reach their financial goals.
+
+Key Features:
+-------------
+• Real-Time Sync: Powered by Supabase, all transactions and project updates sync instantly across devices.
+• Savings Goals: Set targets for emergency funds or purchases, complete with visual progress bars and celebratory confetti when you hit 100%.
+• Collaborator System: Invite friends or family to a project to manage shared finances.
+• Expense Splitting: Automatically calculate "who owes who" based on shared project expenses.
+• Category Budget Limits: Set spending limits for categories (e.g., Food, Transport) and get visual warnings when you overspend.
+• Live Currency Converter: Instantly check exchange rates for international expenses.
+• Local AI Insights: Get smart, rule-based spending analysis directly in your browser without needing external API keys.
+
+Tech Stack:
+-----------
+• Frontend: React, Vite, Tailwind CSS, Lucide Icons
+• Backend/Database: Supabase (PostgreSQL, Realtime, Authentication)

@@ -3,7 +3,17 @@ import { supabase } from '../lib/supabase';
 import { X, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
-export default function AddExpenseModal({ isOpen, onClose, projectId, onExpenseAdded }) {
+/** Calculate the next occurrence date based on frequency from today */
+function getNextOccurrence(from, freq) {
+  const d = new Date(from);
+  if (freq === 'daily')   d.setDate(d.getDate() + 1);
+  if (freq === 'weekly')  d.setDate(d.getDate() + 7);
+  if (freq === 'monthly') d.setMonth(d.getMonth() + 1);
+  if (freq === 'yearly')  d.setFullYear(d.getFullYear() + 1);
+  return d.toISOString().split('T')[0]; // returns YYYY-MM-DD
+}
+
+export default function AddExpenseModal({ isOpen, onClose, projectId, onExpenseAdded, onBudgetAlert }) {
   const { user } = useAuth();
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
@@ -11,6 +21,7 @@ export default function AddExpenseModal({ isOpen, onClose, projectId, onExpenseA
   const [paidBy, setPaidBy] = useState('');
   const [isRecurring, setIsRecurring] = useState(false);
   const [frequency, setFrequency] = useState('monthly');
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
   const [loading, setLoading] = useState(false);
 
   if (!isOpen) return null;
@@ -21,6 +32,7 @@ export default function AddExpenseModal({ isOpen, onClose, projectId, onExpenseA
 
     setLoading(true);
     try {
+      const today = new Date().toISOString().split('T')[0];
       const { error } = await supabase.from('transactions').insert({
         project_id: projectId,
         user_id: user.id,
@@ -30,11 +42,25 @@ export default function AddExpenseModal({ isOpen, onClose, projectId, onExpenseA
         paid_by: paidBy || 'Me',
         is_recurring: isRecurring,
         recurrence_frequency: isRecurring ? frequency : null,
-        next_occurrence: isRecurring ? new Date().toISOString() : null // Simplification for now
+        next_occurrence: isRecurring ? getNextOccurrence(today, frequency) : null,
+        recurrence_end_date: isRecurring && recurrenceEndDate ? recurrenceEndDate : null,
       });
 
       if (error) throw error;
-      
+
+      // Trigger budget-alerts Edge Function for instant feedback
+      try {
+        const { data: alertData } = await supabase.functions.invoke('budget-alerts', {
+          body: { projectId, amount: parseFloat(amount), category },
+        });
+        if (alertData?.alertTriggered && onBudgetAlert) {
+          onBudgetAlert(category, alertData.message);
+        }
+      } catch (alertErr) {
+        // Budget alert is non-critical; don't block the user
+        console.warn('Budget alert check failed:', alertErr.message);
+      }
+
       onExpenseAdded();
       onClose();
       // Reset form
@@ -43,6 +69,7 @@ export default function AddExpenseModal({ isOpen, onClose, projectId, onExpenseA
       setCategory('General');
       setPaidBy('');
       setIsRecurring(false);
+      setRecurrenceEndDate('');
     } catch (error) {
       console.error('Error adding expense:', error);
       alert('Failed to add expense.');
@@ -100,6 +127,8 @@ export default function AddExpenseModal({ isOpen, onClose, projectId, onExpenseA
               <option value="Housing">Housing</option>
               <option value="Entertainment">Entertainment</option>
               <option value="Utilities">Utilities</option>
+              <option value="Health">Health</option>
+              <option value="Shopping">Shopping</option>
             </select>
           </div>
 
@@ -126,18 +155,34 @@ export default function AddExpenseModal({ isOpen, onClose, projectId, onExpenseA
           </div>
 
           {isRecurring && (
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">Frequency</label>
-              <select
-                value={frequency}
-                onChange={(e) => setFrequency(e.target.value)}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              >
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-                <option value="monthly">Monthly</option>
-                <option value="yearly">Yearly</option>
-              </select>
+            <div className="space-y-3 pl-6 border-l-2 border-primary/20">
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">Frequency</label>
+                <select
+                  value={frequency}
+                  onChange={(e) => setFrequency(e.target.value)}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Next occurrence: <span className="font-medium text-foreground">{getNextOccurrence(new Date().toISOString().split('T')[0], frequency)}</span>
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">End Date (Optional)</label>
+                <input
+                  type="date"
+                  value={recurrenceEndDate}
+                  onChange={(e) => setRecurrenceEndDate(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                <p className="text-xs text-muted-foreground mt-1">Leave blank to repeat indefinitely.</p>
+              </div>
             </div>
           )}
 
