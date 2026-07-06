@@ -1,134 +1,96 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Loader2, Sparkles, WifiOff } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { Send, Bot, User, Loader2, Sparkles, AlertCircle } from 'lucide-react';
 
-// Local rule-based fallback (used only if Edge Function fails)
-function generateLocalInsights(transactions, userQuery = null) {
-  if (!transactions || transactions.length === 0) {
-    return "You don't have any transactions yet. Add some expenses first so I can analyze your spending!";
-  }
+// Groq API called via Vite proxy using env var to avoid CORS and secret leaks
+const GROQ_KEY = import.meta.env.VITE_GROQ_API_KEY;
 
-  const totalSpent = transactions.reduce((sum, tx) => sum + Number(tx.amount), 0);
-  const categoryTotals = transactions.reduce((acc, tx) => {
-    acc[tx.category] = (acc[tx.category] || 0) + Number(tx.amount);
-    return acc;
-  }, {});
-  const sortedCategories = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1]);
-  const topCategory = sortedCategories[0];
-  const hugeExpenses = transactions.filter(tx => Number(tx.amount) > (totalSpent * 0.3));
+async function askGroq(transactions, userQuery = null) {
+  const txSummary = transactions.slice(0, 30).map(tx =>
+    `- ${tx.name} | ${tx.category} | amount: ${tx.amount}`
+  ).join('\n');
 
-  if (userQuery) {
-    const q = userQuery.toLowerCase();
-    if (q.includes('total') || q.includes('spend') || q.includes('spent')) {
-      return `You have spent a total of **${totalSpent.toFixed(2)}** across ${transactions.length} transactions.`;
-    }
-    if (q.includes('highest') || q.includes('most') || q.includes('top')) {
-      return `Your highest spending category is **${topCategory[0]}**, where you've spent **${topCategory[1].toFixed(2)}** so far.`;
-    }
-    if (q.includes('food') || q.includes('groceries')) {
-      const foodTotal = categoryTotals['Food'] || 0;
-      return foodTotal > 0
-        ? `You've spent **${foodTotal.toFixed(2)}** on Food. Consider meal prepping to lower this! 😉`
-        : `You haven't spent anything categorized as Food yet.`;
-    }
-    if (q.includes('save') || q.includes('tip') || q.includes('advice')) {
-      return `💡 **Quick Tip:** Try to limit your spending on **${topCategory[0]}**, since that's your biggest expense right now (${topCategory[1].toFixed(2)}).`;
-    }
-    return `Based on your ${transactions.length} transactions, your top expense is **${topCategory[0]}**. Ask me about a specific category for more detail!`;
-  }
+  const userPrompt = userQuery
+    ? `User question: "${userQuery}"\n\nTransactions:\n${txSummary}`
+    : `Analyze these transactions. Give key insights, top spending categories, anomalies, and 2-3 saving tips:\n\n${txSummary}`;
 
-  let report = `📊 **Spending Analysis:**\n\n`;
-  report += `• **Total Spent:** ${totalSpent.toFixed(2)}\n`;
-  report += `• **Top Category:** ${topCategory[0]} (${topCategory[1].toFixed(2)})\n`;
-  if (hugeExpenses.length > 0) {
-    report += `• **Large Expense:** You spent ${hugeExpenses[0].amount} on "${hugeExpenses[0].name}" — a significant portion of your total.\n`;
-  }
-  report += `\n💡 **Tip:** Try setting a weekly limit for ${topCategory[0]} to boost your savings.`;
-  return report;
+  // Using Vite proxy in dev (/groq-api → https://api.groq.com)
+  const res = await fetch('/groq-api/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${GROQ_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'llama-3.1-8b-instant',
+
+      messages: [
+        { role: 'system', content: 'You are a friendly personal finance advisor. Be concise and practical. Max 150 words.' },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.7,
+      max_tokens: 400,
+    }),
+  });
+
+  const json = await res.json();
+  if (!res.ok) throw new Error(json?.error?.message || `HTTP ${res.status}`);
+  const text = json?.choices?.[0]?.message?.content;
+  if (!text) throw new Error('Empty response from Groq');
+  return text;
 }
 
 export default function ChatInsights({ projectId, transactions }) {
   const [messages, setMessages] = useState([
-    { id: 1, role: 'ai', text: "Hello! I'm your AI budget assistant powered by Groq. Click 'Generate Insights' or ask me a question about your spending." }
+    { id: 1, role: 'ai', text: "Hi! I'm your AI budget assistant powered by Groq (llama3). Click 'Generate Insights' or ask me anything about your spending." }
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [usingFallback, setUsingFallback] = useState(false);
+  const [lastError, setLastError] = useState('');
   const scrollRef = useRef(null);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages]);
 
-  const addAiMessage = (text) =>
-    setMessages(prev => [...prev, { id: Date.now(), role: 'ai', text }]);
+  const addMsg = (role, text) =>
+    setMessages(prev => [...prev, { id: Date.now() + Math.random(), role, text }]);
 
-  const addUserMessage = (text) =>
-    setMessages(prev => [...prev, { id: Date.now(), role: 'user', text }]);
-
-  // Call the Groq-powered Edge Function, with local fallback on error
-  const callAI = async (userQuery = null) => {
-    try {
-      const { data, error } = await supabase.functions.invoke('ai-insights', {
-        body: {
-          projectId,
-          action: 'analyze',
-          transactions,
-          userQuery,
-        },
-      });
-
-      if (error || data?.error) {
-        throw new Error(error?.message || data?.error || 'Edge Function error');
-      }
-
-      setUsingFallback(false);
-      return data.insight;
-    } catch (err) {
-      console.warn('AI Edge Function failed, using local fallback:', err.message);
-      setUsingFallback(true);
-      return generateLocalInsights(transactions, userQuery);
-    }
-  };
-
-  const generateInsights = async () => {
-    if (loading || transactions.length === 0) return;
+  const run = async (userQuery = null) => {
+    setLastError('');
     setLoading(true);
-    const insight = await callAI();
-    addAiMessage(insight);
-    setLoading(false);
+    try {
+      const result = await askGroq(transactions, userQuery);
+      addMsg('ai', result);
+    } catch (err) {
+      const msg = err.message || 'Unknown error';
+      setLastError(msg);
+      console.error('Groq error:', msg);
+      addMsg('ai', `⚠️ AI error: ${msg}\n\nPlease check the console for details.`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSend = async (e) => {
     e.preventDefault();
     if (!input.trim() || loading) return;
-
-    const userMsg = input.trim();
+    const q = input.trim();
     setInput('');
-    addUserMessage(userMsg);
-
-    setLoading(true);
-    const answer = await callAI(userMsg);
-    addAiMessage(answer);
-    setLoading(false);
+    addMsg('user', q);
+    await run(q);
   };
 
   return (
     <div className="flex flex-col h-[500px] bg-card rounded-xl border border-border overflow-hidden">
+      {/* Header */}
       <div className="p-4 border-b border-border flex items-center justify-between bg-secondary/30">
         <h3 className="font-semibold flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-primary" />
           AI Budget Assistant
-          {usingFallback && (
-            <span className="flex items-center gap-1 text-xs text-yellow-500 font-normal">
-              <WifiOff className="w-3 h-3" /> (local mode)
-            </span>
-          )}
+          <span className="text-[10px] font-normal text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">Groq · llama3</span>
         </h3>
         <button
-          onClick={generateInsights}
+          onClick={() => run()}
           disabled={loading || transactions.length === 0}
           className="px-3 py-1.5 text-xs font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
@@ -136,21 +98,30 @@ export default function ChatInsights({ projectId, transactions }) {
         </button>
       </div>
 
+      {/* Error banner */}
+      {lastError && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-destructive/10 border-b border-destructive/20 text-destructive text-xs">
+          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+          <span className="font-mono break-all">{lastError}</span>
+        </div>
+      )}
+
+      {/* Messages */}
       <div className="flex-1 p-4 overflow-y-auto space-y-4" ref={scrollRef}>
         {messages.map((msg) => (
           <div key={msg.id} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
             <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'}`}>
               {msg.role === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
             </div>
-            <div className={`max-w-[80%] rounded-2xl px-4 py-2 ${msg.role === 'user' ? 'bg-primary text-primary-foreground rounded-tr-none' : 'bg-secondary text-secondary-foreground rounded-tl-none whitespace-pre-wrap'}`}>
-              <p className="text-sm leading-relaxed">{msg.text}</p>
+            <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${msg.role === 'user' ? 'bg-primary text-primary-foreground rounded-tr-none' : 'bg-secondary text-secondary-foreground rounded-tl-none'}`}>
+              {msg.text}
             </div>
           </div>
         ))}
         {loading && (
           <div className="flex gap-3">
-            <div className="w-8 h-8 rounded-full bg-secondary text-secondary-foreground flex items-center justify-center shrink-0">
-              <Bot className="w-4 h-4" />
+            <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center shrink-0">
+              <Bot className="w-4 h-4 text-secondary-foreground" />
             </div>
             <div className="bg-secondary text-secondary-foreground rounded-2xl rounded-tl-none px-4 py-3 flex items-center gap-1">
               <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
@@ -161,20 +132,21 @@ export default function ChatInsights({ projectId, transactions }) {
         )}
       </div>
 
+      {/* Input */}
       <div className="p-3 border-t border-border bg-background">
         <form onSubmit={handleSend} className="relative">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask 'What did I spend the most on?'..."
+            placeholder="Ask anything about your spending..."
             disabled={loading}
-            className="w-full pl-4 pr-12 py-2.5 bg-secondary/50 border border-border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary disabled:opacity-50"
+            className="w-full pl-4 pr-12 py-2.5 bg-secondary/50 border border-border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
           />
           <button
             type="submit"
             disabled={!input.trim() || loading}
-            className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 disabled:opacity-50 transition-colors"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </button>

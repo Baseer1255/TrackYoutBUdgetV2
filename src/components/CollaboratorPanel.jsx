@@ -16,25 +16,40 @@ export default function CollaboratorPanel({ projectId }) {
   const fetchMembers = async () => {
     try {
       setLoading(true);
-      // Fetch current members
+
+      // Step 1: Fetch member records without the join
       const { data: memberData, error: memberError } = await supabase
         .from('project_members')
-        .select(`
-          role,
-          user_id,
-          profiles:user_id (id, full_name)
-        `)
+        .select('role, user_id')
         .eq('project_id', projectId);
 
       if (memberError) throw memberError;
-      setMembers(memberData || []);
 
-      // Fetch all profiles (for the invite dropdown)
-      // In a real production app, you'd want a search API instead of loading all users
+      // Step 2: Fetch each member's profile individually (avoids RLS join failure)
+      const memberIds = (memberData || []).map(m => m.user_id);
+      const profileMap = {};
+      await Promise.all(
+        memberIds.map(async (uid) => {
+          const { data: p } = await supabase
+            .from('profiles')
+            .select('id, full_name')
+            .eq('id', uid)
+            .maybeSingle();
+          if (p) profileMap[uid] = p;
+        })
+      );
+
+      const merged = (memberData || []).map(m => ({
+        ...m,
+        profiles: profileMap[m.user_id] || { id: m.user_id, full_name: null },
+      }));
+      setMembers(merged);
+
+      // Step 3: Fetch all profiles for the invite dropdown
       const { data: usersData, error: usersError } = await supabase
         .from('profiles')
         .select('id, full_name');
-        
+
       if (usersError) throw usersError;
       setAllUsers(usersData || []);
     } catch (err) {

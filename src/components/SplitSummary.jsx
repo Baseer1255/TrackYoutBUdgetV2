@@ -12,16 +12,34 @@ export default function SplitSummary({ projectId, transactions, projectCurrency 
     const fetchMembers = async () => {
       try {
         setLoading(true);
-        const { data, error } = await supabase
+        // Step 1: Fetch member user_ids
+        const { data: memberData, error: memberError } = await supabase
           .from('project_members')
-          .select(`
-            user_id,
-            profiles:user_id (id, full_name)
-          `)
+          .select('user_id, role')
           .eq('project_id', projectId);
 
-        if (error) throw error;
-        setMembers(data || []);
+        if (memberError) throw memberError;
+
+        // Step 2: Fetch profiles for each member individually (avoids RLS join issue)
+        const memberIds = (memberData || []).map(m => m.user_id);
+        const profileMap = {};
+        await Promise.all(
+          memberIds.map(async (uid) => {
+            const { data: p } = await supabase
+              .from('profiles')
+              .select('id, full_name')
+              .eq('id', uid)
+              .maybeSingle();
+            if (p) profileMap[uid] = p;
+          })
+        );
+
+        // Merge
+        const merged = (memberData || []).map(m => ({
+          ...m,
+          profiles: profileMap[m.user_id] || { id: m.user_id, full_name: null },
+        }));
+        setMembers(merged);
       } catch (err) {
         console.error('Error fetching members for splits:', err);
       } finally {
