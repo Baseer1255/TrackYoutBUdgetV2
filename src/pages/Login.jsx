@@ -18,7 +18,13 @@ export default function Login() {
     try {
       const { error } = await signIn({ email, password });
       if (error) throw error;
-      navigate('/');
+      
+      const redirectUrl = localStorage.getItem('redirectAfterLogin');
+      if (redirectUrl) {
+        navigate(redirectUrl);
+      } else {
+        navigate('/');
+      }
     } catch (err) {
       setError(err.message);
     } finally {

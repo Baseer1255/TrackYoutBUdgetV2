@@ -34,15 +34,6 @@ export default defineConfig({
       }
     })
   ],
-  server: {
-    proxy: {
-      // Proxy Groq API requests to avoid CORS issues in the browser
-      '/groq-api': {
-        target: 'https://api.groq.com',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/groq-api/, ''),
-      },
-    },
-  },
 })
+
 

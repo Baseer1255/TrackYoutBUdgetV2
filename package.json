@@ -27,6 +27,7 @@
     "tailwind-merge": "^3.6.0",
     "tailwindcss": "^4.3.2",
     "tesseract.js": "^7.0.0",
+    "uuid": "^14.0.1",
     "vite-plugin-pwa": "^1.3.0"
   },
   "devDependencies": {

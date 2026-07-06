@@ -20,19 +20,19 @@ export default function SplitSummary({ projectId, transactions, projectCurrency 
 
         if (memberError) throw memberError;
 
-        // Step 2: Fetch profiles for each member individually (avoids RLS join issue)
+        // Step 2: Fetch profiles for each member using RPC
         const memberIds = (memberData || []).map(m => m.user_id);
+        const { data: profiles, error: profilesError } = await supabase
+          .rpc('get_user_profiles_by_ids', { uids: memberIds });
+
+        if (profilesError) console.error('Error fetching profiles for splits:', profilesError);
+
         const profileMap = {};
-        await Promise.all(
-          memberIds.map(async (uid) => {
-            const { data: p } = await supabase
-              .from('profiles')
-              .select('id, full_name')
-              .eq('id', uid)
-              .maybeSingle();
-            if (p) profileMap[uid] = p;
-          })
-        );
+        if (profiles) {
+          profiles.forEach(p => {
+            profileMap[p.id] = p;
+          });
+        }
 
         // Merge
         const merged = (memberData || []).map(m => ({

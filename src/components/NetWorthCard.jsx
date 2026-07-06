@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { TrendingUp, TrendingDown, Plus, Trash2, Loader2, Landmark } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function NetWorthCard() {
   const { user } = useAuth();
@@ -11,13 +12,22 @@ export default function NetWorthCard() {
   const [form, setForm] = useState({ name: '', type: 'asset', balance: '', currency: 'USD' });
   const [saving, setSaving] = useState(false);
 
+  const [snapshots, setSnapshots] = useState([]);
+
   const fetchAccounts = async () => {
-    const { data } = await supabase
-      .from('accounts')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-    setAccounts(data || []);
+    const [accountsRes, snapshotsRes] = await Promise.all([
+      supabase.from('accounts').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
+      supabase.from('net_worth_snapshots').select('*').eq('user_id', user.id).order('created_at', { ascending: true })
+    ]);
+    
+    setAccounts(accountsRes.data || []);
+    
+    if (snapshotsRes.data) {
+      setSnapshots(snapshotsRes.data.map(s => ({
+        ...s,
+        dateFormatted: new Date(s.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+      })));
+    }
     setLoading(false);
   };
 
@@ -48,6 +58,18 @@ export default function NetWorthCard() {
         currency: form.currency,
       });
       if (error) throw error;
+
+      const newAssets = form.type === 'asset' ? totalAssets + parseFloat(form.balance) : totalAssets;
+      const newLiabilities = form.type === 'liability' ? totalLiabilities + parseFloat(form.balance) : totalLiabilities;
+      const newNetWorth = newAssets - newLiabilities;
+
+      await supabase.from('net_worth_snapshots').insert({
+        user_id: user.id,
+        total_assets: newAssets,
+        total_liabilities: newLiabilities,
+        net_worth: newNetWorth
+      });
+
       setForm({ name: '', type: 'asset', balance: '', currency: 'USD' });
       setShowForm(false);
       fetchAccounts();
@@ -59,7 +81,22 @@ export default function NetWorthCard() {
   };
 
   const handleDelete = async (id) => {
+    const accountToDelete = accounts.find(a => a.id === id);
+    if (!accountToDelete) return;
+
     await supabase.from('accounts').delete().eq('id', id);
+
+    const newAssets = accountToDelete.type === 'asset' ? totalAssets - Number(accountToDelete.balance) : totalAssets;
+    const newLiabilities = accountToDelete.type === 'liability' ? totalLiabilities - Number(accountToDelete.balance) : totalLiabilities;
+    const newNetWorth = newAssets - newLiabilities;
+
+    await supabase.from('net_worth_snapshots').insert({
+      user_id: user.id,
+      total_assets: newAssets,
+      total_liabilities: newLiabilities,
+      net_worth: newNetWorth
+    });
+
     fetchAccounts();
   };
 
@@ -87,6 +124,31 @@ export default function NetWorthCard() {
         <span className="text-green-500 font-medium">▲ Assets ${totalAssets.toLocaleString()}</span>
         <span className="text-red-500 font-medium">▼ Debts ${totalLiabilities.toLocaleString()}</span>
       </div>
+
+      {/* Net Worth Trend Chart */}
+      {snapshots.length > 0 && (
+        <div className="h-24 w-full mb-4">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={snapshots}>
+              <XAxis dataKey="dateFormatted" hide />
+              <YAxis hide domain={['auto', 'auto']} />
+              <Tooltip 
+                contentStyle={{ borderRadius: '8px', fontSize: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                formatter={(value) => [`$${value}`, 'Net Worth']}
+                labelStyle={{ color: '#64748b' }}
+              />
+              <Line 
+                type="monotone" 
+                dataKey="net_worth" 
+                stroke="#3b82f6" 
+                strokeWidth={2}
+                dot={false}
+                activeDot={{ r: 4 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
 
       {/* Add Account Form */}
       {showForm && (

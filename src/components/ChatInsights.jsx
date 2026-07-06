@@ -1,43 +1,48 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Loader2, Sparkles, AlertCircle } from 'lucide-react';
 
-// Groq API called via Vite proxy using env var to avoid CORS and secret leaks
-const GROQ_KEY = import.meta.env.VITE_GROQ_API_KEY;
+import { supabase } from '../lib/supabase';
 
-async function askGroq(transactions, userQuery = null) {
-  const txSummary = transactions.slice(0, 30).map(tx =>
-    `- ${tx.name} | ${tx.category} | amount: ${tx.amount}`
-  ).join('\n');
+// Local rule-based fallback (used only if Groq API call fails)
+function generateLocalInsights(transactions, userQuery = null) {
+  if (!transactions || transactions.length === 0) {
+    return "You don't have any transactions yet. Add some expenses first so I can analyze your spending!";
+  }
 
-  const userPrompt = userQuery
-    ? `User question: "${userQuery}"\n\nTransactions:\n${txSummary}`
-    : `Analyze these transactions. Give key insights, top spending categories, anomalies, and 2-3 saving tips:\n\n${txSummary}`;
+  const totalSpent = transactions.reduce((sum, tx) => sum + Number(tx.amount), 0);
+  const categoryTotals = transactions.reduce((acc, tx) => {
+    acc[tx.category] = (acc[tx.category] || 0) + Number(tx.amount);
+    return acc;
+  }, {});
+  const sortedCategories = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1]);
+  const topCategory = sortedCategories[0];
+  const hugeExpenses = transactions.filter(tx => Number(tx.amount) > (totalSpent * 0.3));
 
-  // Using Vite proxy in dev (/groq-api → https://api.groq.com)
-  const res = await fetch('/groq-api/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${GROQ_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'llama-3.1-8b-instant',
+  if (userQuery) {
+    const q = userQuery.toLowerCase();
+    if (q.includes('total') || q.includes('spend') || q.includes('spent'))
+      return `You have spent a total of **${totalSpent.toFixed(2)}** across ${transactions.length} transactions.`;
+    if (q.includes('highest') || q.includes('most') || q.includes('top'))
+      return `Your highest spending category is **${topCategory[0]}**, with **${topCategory[1].toFixed(2)}** spent.`;
+    if (q.includes('food') || q.includes('groceries')) {
+      const foodTotal = categoryTotals['Food'] || 0;
+      return foodTotal > 0
+        ? `You've spent **${foodTotal.toFixed(2)}** on Food. Consider meal prepping to lower this! 😉`
+        : `You haven't spent anything on Food yet.`;
+    }
+    if (q.includes('save') || q.includes('tip') || q.includes('advice'))
+      return `💡 **Tip:** Limit your spending on **${topCategory[0]}** (currently ${topCategory[1].toFixed(2)}) — that's your biggest expense.`;
+  }
 
-      messages: [
-        { role: 'system', content: 'You are a friendly personal finance advisor. Be concise and practical. Max 150 words.' },
-        { role: 'user', content: userPrompt },
-      ],
-      temperature: 0.7,
-      max_tokens: 400,
-    }),
-  });
-
-  const json = await res.json();
-  if (!res.ok) throw new Error(json?.error?.message || `HTTP ${res.status}`);
-  const text = json?.choices?.[0]?.message?.content;
-  if (!text) throw new Error('Empty response from Groq');
-  return text;
+  let report = `📊 **Spending Analysis:**\n\n`;
+  report += `• **Total Spent:** ${totalSpent.toFixed(2)}\n`;
+  report += `• **Top Category:** ${topCategory[0]} (${topCategory[1].toFixed(2)})\n`;
+  if (hugeExpenses.length > 0)
+    report += `• **Large Expense:** ${hugeExpenses[0].amount} on "${hugeExpenses[0].name}"\n`;
+  report += `\n💡 Try setting a weekly limit for ${topCategory[0]} to boost your savings.`;
+  return report;
 }
+
 
 export default function ChatInsights({ projectId, transactions }) {
   const [messages, setMessages] = useState([
@@ -59,8 +64,20 @@ export default function ChatInsights({ projectId, transactions }) {
     setLastError('');
     setLoading(true);
     try {
-      const result = await askGroq(transactions, userQuery);
-      addMsg('ai', result);
+      const { data, error } = await supabase.functions.invoke('ai-insights', {
+        body: {
+          projectId,
+          action: 'analyze',
+          transactions,
+          userQuery,
+        },
+      });
+
+      if (error || data?.error) {
+        throw new Error(error?.message || data?.error || 'Edge Function error');
+      }
+
+      addMsg('ai', data.insight);
     } catch (err) {
       const msg = err.message || 'Unknown error';
       setLastError(msg);

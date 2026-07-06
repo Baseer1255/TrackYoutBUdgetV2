@@ -8,6 +8,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import ProjectDetails from './pages/ProjectDetails';
 import AdminDashboard from './pages/AdminDashboard';
 import Settings from './pages/Settings';
+import Invite from './pages/Invite';
 
 import Layout from './components/Layout';
 
@@ -29,6 +30,7 @@ function App() {
           <Route path="/project/:id" element={<ProtectedRoute><ProjectDetails /></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+          <Route path="/invite/:token" element={<Invite />} />
         </Routes>
       </div>
     </AuthProvider>

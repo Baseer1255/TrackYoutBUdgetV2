@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { 
@@ -15,6 +15,7 @@ import CollaboratorPanel from '../components/CollaboratorPanel';
 import SplitSummary from '../components/SplitSummary';
 import CurrencyConverter from '../components/CurrencyConverter';
 import CategoryBudgets from '../components/CategoryBudgets';
+import RecurringList from '../components/RecurringList';
 import { exportToPDF } from '../lib/pdf';
 import { parseCSV, formatTransactionsForDb } from '../lib/csv';
 import { scanReceipt } from '../lib/ocr';
@@ -24,7 +25,9 @@ import { usePushNotifications } from '../hooks/usePushNotifications';
 export default function ProjectDetails() {
   const { id } = useParams();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [project, setProject] = useState(null);
+  const [isOwner, setIsOwner] = useState(false);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('transactions'); // transactions, insights
@@ -55,13 +58,15 @@ export default function ProjectDetails() {
 
   const fetchProjectData = async () => {
     try {
-      const [projectRes, txRes] = await Promise.all([
+      const [projectRes, txRes, memberRes] = await Promise.all([
         supabase.from('projects').select('*').eq('id', id).single(),
-        supabase.from('transactions').select('*').eq('project_id', id).order('created_at', { ascending: false })
+        supabase.from('transactions').select('*').eq('project_id', id).order('created_at', { ascending: false }),
+        supabase.from('project_members').select('role').eq('project_id', id).eq('user_id', user.id).single()
       ]);
 
       if (projectRes.error) throw projectRes.error;
       setProject(projectRes.data);
+      if (memberRes.data?.role === 'owner') setIsOwner(true);
       
       if (txRes.data) {
         setTransactions(txRes.data);
@@ -203,6 +208,26 @@ export default function ProjectDetails() {
     }
   };
 
+  const handleDeleteProject = async () => {
+    if (!confirm('Are you absolutely sure you want to delete this entire project? This action cannot be undone and will delete all associated transactions and budgets.')) return;
+    
+    try {
+      // Supabase ON DELETE CASCADE is usually set, but if not we can delete dependencies explicitly or rely on it.
+      // We will attempt to delete the project directly. If it fails due to FK constraints without CASCADE, 
+      // we'd delete children first. Most Supabase setups include CASCADE. Let's delete children explicitly to be safe.
+      await supabase.from('transactions').delete().eq('project_id', id);
+      await supabase.from('category_budgets').delete().eq('project_id', id);
+      await supabase.from('project_members').delete().eq('project_id', id);
+      
+      const { error } = await supabase.from('projects').delete().eq('id', id);
+      if (error) throw error;
+      
+      navigate('/');
+    } catch (error) {
+      alert('Error deleting project: ' + error.message);
+    }
+  };
+
   const handleEditSave = async (e) => {
     e.preventDefault();
     if (!editTx) return;
@@ -329,6 +354,16 @@ export default function ProjectDetails() {
           <button onClick={() => setIsExpenseModalOpen(true)} className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 shadow-sm transition-colors">
             <Plus className="mr-2 h-4 w-4" /> Expense
           </button>
+
+          {isOwner && (
+            <button 
+              onClick={handleDeleteProject} 
+              className="inline-flex h-9 items-center justify-center rounded-md bg-destructive/10 text-destructive border border-destructive/20 hover:bg-destructive hover:text-destructive-foreground px-3 text-sm font-medium shadow-sm transition-colors ml-2" 
+              title="Delete Project"
+            >
+              Delete Project
+            </button>
+          )}
         </div>
       </div>
 
@@ -400,6 +435,12 @@ export default function ProjectDetails() {
               Charts
             </button>
             <button 
+              className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${activeTab === 'recurring' ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+              onClick={() => setActiveTab('recurring')}
+            >
+              Recurring
+            </button>
+            <button 
               className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${activeTab === 'insights' ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
               onClick={() => setActiveTab('insights')}
             >
@@ -441,11 +482,43 @@ export default function ProjectDetails() {
               </div>
 
               {/* Monthly Trend Chart */}
-              <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-                <h3 className="font-semibold text-foreground flex items-center gap-2 mb-4">
-                  <BarChart3 className="h-4 w-4 text-primary" />
-                  Monthly Trend
-                </h3>
+              <div className="rounded-xl border border-border bg-card p-5 shadow-sm" id="monthly-trend-chart">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="font-semibold text-foreground flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4 text-primary" />
+                    Monthly Trend
+                  </h3>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => {
+                        const csvContent = "data:text/csv;charset=utf-8," 
+                          + "Month,Amount\n" 
+                          + trendData.map(row => `${row.name},${row.amount}`).join("\n");
+                        const encodedUri = encodeURI(csvContent);
+                        const link = document.createElement("a");
+                        link.setAttribute("href", encodedUri);
+                        link.setAttribute("download", `${project.name}-monthly-trend.csv`);
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                      }}
+                      className="text-xs px-2 py-1 bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded"
+                      title="Export CSV"
+                    >
+                      CSV
+                    </button>
+                    <button 
+                      onClick={() => {
+                        const chartEl = document.getElementById('monthly-trend-chart');
+                        if (chartEl) exportToPDF(chartEl, `${project.name}-monthly-trend.pdf`);
+                      }}
+                      className="text-xs px-2 py-1 bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded"
+                      title="Export PDF"
+                    >
+                      PDF
+                    </button>
+                  </div>
+                </div>
                 <div className="h-56 w-full text-xs">
                   {trendData.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
@@ -463,6 +536,12 @@ export default function ProjectDetails() {
                 </div>
               </div>
             </div>
+          ) : activeTab === 'recurring' ? (
+            <RecurringList 
+              transactions={transactions} 
+              onEdit={(tx) => setEditTx({ ...tx })} 
+              onDelete={handleDeleteTransaction} 
+            />
           ) : activeTab === 'insights' ? (
             <ChatInsights projectId={id} transactions={transactions} />
           ) : (

@@ -38,36 +38,53 @@ serve(async (req) => {
       const totalSpent = transactions?.reduce((sum, t) => sum + Number(t.amount), 0) || 0;
       const newTotal = totalSpent + Number(amount);
       
-      const threshold = Number(budget.budget_limit) * 0.8; // 80% threshold
+      const threshold80 = Number(budget.budget_limit) * 0.8;
+      const threshold100 = Number(budget.budget_limit);
 
-      if (newTotal >= threshold) {
-        // Send email via Resend
-        const resendApiKey = Deno.env.get('RESEND_API_KEY');
-        if (resendApiKey) {
-            // Fetch project owners
-            const { data: members } = await supabaseClient
-              .from('project_members')
-              .select('user_id')
-              .eq('project_id', projectId)
-            
-            // This is a simplified skeleton - in reality, you'd fetch user emails from auth.users via an RPC or Admin API
-            // and trigger an email to them using Resend.
-            await fetch('https://api.resend.com/emails', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${resendApiKey}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    from: 'alerts@trackyourbudget.com',
-                    to: 'user@example.com', // Replace with real fetched email
-                    subject: `Budget Alert: ${category} is at ${Math.round((newTotal/budget.budget_limit)*100)}% capacity`,
-                    html: `<p>You are approaching your budget limit for ${category}.</p>`
-                })
-            })
+      if (newTotal >= threshold80) {
+        let is100Percent = newTotal >= threshold100;
+        let message = is100Percent 
+          ? `Budget for ${category} exceeded 100%!` 
+          : `Budget for ${category} exceeded 80%`;
+
+        // Send email via Resend if >= 100%
+        if (is100Percent) {
+          const resendApiKey = Deno.env.get('RESEND_API_KEY');
+          if (resendApiKey) {
+              // Fetch project owner id
+              const { data: project } = await supabaseClient
+                .from('projects')
+                .select('user_id')
+                .eq('id', projectId)
+                .single();
+              
+              if (project?.user_id) {
+                // Fetch the user's email using auth admin API
+                const { data: authData } = await supabaseClient.auth.admin.getUserById(project.user_id);
+                const ownerEmail = authData?.user?.email;
+
+                if (ownerEmail) {
+                  await fetch('https://api.resend.com/emails', {
+                      method: 'POST',
+                      headers: {
+                          'Authorization': `Bearer ${resendApiKey}`,
+                          'Content-Type': 'application/json'
+                      },
+                      body: JSON.stringify({
+                          from: 'TrackYourBudget <onboarding@resend.dev>', // Resend testing domain
+                          to: ownerEmail,
+                          subject: `🚨 Budget Alert: ${category} is at 100% capacity!`,
+                          html: `<p>You have reached your budget limit for <strong>${category}</strong>.</p>
+                                 <p>Current spent: ${newTotal}</p>
+                                 <p>Budget limit: ${budget.budget_limit}</p>`
+                      })
+                  });
+                }
+              }
+          }
         }
         
-        return new Response(JSON.stringify({ alertTriggered: true, message: `Budget for ${category} exceeded 80%` }), {
+        return new Response(JSON.stringify({ alertTriggered: true, message }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
       }
