@@ -43,7 +43,7 @@ export default function CollaboratorPanel({ projectId }) {
 
       const merged = (memberData || []).map(m => ({
         ...m,
-        profiles: profileMap[m.user_id] || { id: m.user_id, full_name: null },
+        profiles: profileMap[m.user_id] || { id: m.user_id, full_name: null, email: null },
       }));
       setMembers(merged);
 
@@ -211,7 +211,7 @@ export default function CollaboratorPanel({ projectId }) {
             <option value="">Select a user...</option>
             {availableUsers.map(u => (
               <option key={u.id} value={u.id}>
-                {u.full_name || 'Unknown User'}
+                {u.full_name || `User (${u.id.substring(0,6)}...)`}
               </option>
             ))}
           </select>
@@ -234,7 +234,7 @@ export default function CollaboratorPanel({ projectId }) {
               </div>
               <div>
                 <p className="text-sm font-medium text-foreground">
-                  {member.profiles?.full_name || 'Unknown User'}
+                  {member.profiles?.full_name || member.profiles?.email || 'Unknown User'}
                   {member.user_id === user.id && <span className="text-muted-foreground ml-1">(You)</span>}
                 </p>
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">

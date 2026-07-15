@@ -2,64 +2,125 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
+  --font-sans: 'Inter', sans-serif;
+  --font-heading: 'Montserrat', sans-serif;
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
+  
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-container: var(--primary-container);
+  
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary-container: var(--secondary-container);
+  
+  --color-tertiary: var(--tertiary);
+  --color-tertiary-foreground: var(--tertiary-foreground);
+
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
+  
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+  
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+
+  /* New Vibrant Ledger Colors */
+  --color-surface-dim: var(--surface-dim);
+  --color-surface-bright: var(--surface-bright);
+  --color-surface-lowest: var(--surface-container-lowest);
+  --color-surface-low: var(--surface-container-low);
+  --color-surface: var(--surface-container);
+  --color-surface-high: var(--surface-container-high);
+  --color-surface-highest: var(--surface-container-highest);
+  --color-surface-variant: var(--surface-variant);
 }
 
 @layer base {
   :root {
+    /* Light Mode - Defaulting to light, but the prompt says background is Navy-Slate in dark mode. Let's make the default light mode slightly softer, but the prompt mainly focuses on dark mode. I'll provide a high-contrast light mode. */
     --background: #f8fafc;
-    --foreground: #0f172a;
+    --foreground: #0F172A;
     --card: #ffffff;
-    --card-foreground: #0f172a;
-    --primary: #3b82f6;
+    --card-foreground: #0F172A;
+    --primary: #7C3AED;
     --primary-foreground: #ffffff;
-    --secondary: #f1f5f9;
-    --secondary-foreground: #1e293b;
+    --primary-container: #ede0ff;
+    --secondary: #14B8A6;
+    --secondary-foreground: #ffffff;
+    --secondary-container: #ccfbf1;
+    --tertiary: #FB7185;
+    --tertiary-foreground: #ffffff;
     --muted: #f1f5f9;
     --muted-foreground: #64748b;
-    --accent: #f1f5f9;
-    --accent-foreground: #1e293b;
+    --accent: #f8fafc;
+    --accent-foreground: #0F172A;
     --destructive: #ef4444;
     --destructive-foreground: #ffffff;
     --border: #e2e8f0;
     --input: #e2e8f0;
-    --ring: #3b82f6;
+    --ring: #7C3AED;
+
+    /* Surface Tokens */
+    --surface-dim: #d1d5db;
+    --surface-bright: #f9fafb;
+    --surface-container-lowest: #ffffff;
+    --surface-container-low: #f3f4f6;
+    --surface-container: #e5e7eb;
+    --surface-container-high: #d1d5db;
+    --surface-container-highest: #9ca3af;
+    --surface-variant: #e2e8f0;
   }
 
   .dark {
-    --background: #0f172a;
-    --foreground: #f8fafc;
-    --card: #1e293b;
-    --card-foreground: #f8fafc;
-    --primary: #3b82f6;
-    --primary-foreground: #ffffff;
-    --secondary: #334155;
-    --secondary-foreground: #f8fafc;
-    --muted: #334155;
-    --muted-foreground: #94a3b8;
-    --accent: #334155;
-    --accent-foreground: #f8fafc;
-    --destructive: #7f1d1d;
-    --destructive-foreground: #ffffff;
-    --border: #334155;
-    --input: #334155;
-    --ring: #3b82f6;
+    /* Dark Mode - Vibrant Ledger Palette */
+    --background: #0F172A; /* Navy-Slate */
+    --foreground: #e8dfee;
+    --card: #15121b; /* surface */
+    --card-foreground: #e8dfee;
+    
+    --primary: #d2bbff;
+    --primary-foreground: #3f008e;
+    --primary-container: #7c3aed;
+    
+    --secondary: #4fdbc8;
+    --secondary-foreground: #003731;
+    --secondary-container: #04b4a2;
+    
+    --tertiary: #ffb2b9;
+    --tertiary-foreground: #67001f;
+    
+    --muted: #2c2833; /* surface-container-high */
+    --muted-foreground: #ccc3d8; /* on-surface-variant */
+    
+    --accent: #2c2833;
+    --accent-foreground: #e8dfee;
+    
+    --destructive: #ffb4ab;
+    --destructive-foreground: #690005;
+    
+    --border: rgba(255, 255, 255, 0.1); /* Subtle 1px border */
+    --input: #4a4455; /* outline-variant */
+    --ring: #d2bbff;
+
+    /* Surface Tokens from Spec */
+    --surface-dim: #15121b;
+    --surface-bright: #3c3742;
+    --surface-container-lowest: #100d16;
+    --surface-container-low: #1d1a24;
+    --surface-container: #221e28;
+    --surface-container-high: #2c2833;
+    --surface-container-highest: #37333e;
+    --surface-variant: #37333e;
   }
 }
 
@@ -70,4 +131,55 @@
 body {
   background-color: var(--background);
   color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  letter-spacing: -0.02em;
+}
+
+.numeric-display {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+/* Base Components Styles */
+
+.vibrant-card {
+  @apply rounded-xl border border-border bg-card shadow-[0_4px_20px_-4px_rgba(0,0,0,0.15)] p-5 md:p-6 transition-all duration-300;
+}
+
+.dark .vibrant-card {
+  box-shadow: 0 4px 20px -4px rgba(210, 187, 255, 0.05); /* very subtle primary tint shadow */
+}
+
+.vibrant-card:hover {
+  @apply shadow-[0_8px_30px_-4px_rgba(0,0,0,0.2)];
+  transform: translateY(-2px);
+}
+
+.dark .vibrant-card:hover {
+  box-shadow: 0 8px 30px -4px rgba(210, 187, 255, 0.1);
+}
+
+.vibrant-button-primary {
+  @apply inline-flex items-center justify-center rounded-lg bg-[#7C3AED] px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-[#6D28D9] active:scale-[0.98] transition-all duration-200;
+}
+
+.vibrant-button-secondary {
+  @apply inline-flex items-center justify-center rounded-lg bg-[#14B8A6] px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-[#0D9488] active:scale-[0.98] transition-all duration-200;
+}
+
+.vibrant-button-ghost {
+  @apply inline-flex items-center justify-center rounded-lg bg-[#14B8A6]/10 px-4 py-2 text-sm font-semibold text-[#14B8A6] hover:bg-[#14B8A6]/20 active:scale-[0.98] transition-all duration-200;
+}
+
+.vibrant-input {
+  @apply w-full rounded-lg border border-input bg-background px-3 py-2 text-sm transition-all duration-200 focus:border-[#7C3AED] focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/50 focus:shadow-[0_0_15px_rgba(124,58,237,0.3)];
+}
+
+.vibrant-badge-coral {
+  @apply px-2.5 py-1 rounded-lg bg-[#FB7185] text-[#67001f] text-xs font-bold uppercase tracking-wider;
 }

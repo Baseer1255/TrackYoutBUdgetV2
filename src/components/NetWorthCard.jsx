@@ -13,14 +13,26 @@ export default function NetWorthCard() {
   const [saving, setSaving] = useState(false);
 
   const [snapshots, setSnapshots] = useState([]);
+  const [plaidMapping, setPlaidMapping] = useState({});
 
   const fetchAccounts = async () => {
-    const [accountsRes, snapshotsRes] = await Promise.all([
+    const [accountsRes, snapshotsRes, plaidRes] = await Promise.all([
       supabase.from('accounts').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
-      supabase.from('net_worth_snapshots').select('*').eq('user_id', user.id).order('created_at', { ascending: true })
+      supabase.from('net_worth_snapshots').select('*').eq('user_id', user.id).order('created_at', { ascending: true }),
+      supabase.from('plaid_accounts').select('account_id, plaid_items(institution_name)')
     ]);
     
     setAccounts(accountsRes.data || []);
+    
+    if (plaidRes.data) {
+      const mapping = {};
+      plaidRes.data.forEach(p => {
+        if (p.account_id) {
+          mapping[p.account_id] = p.plaid_items?.institution_name || 'Bank';
+        }
+      });
+      setPlaidMapping(mapping);
+    }
     
     if (snapshotsRes.data) {
       setSnapshots(snapshotsRes.data.map(s => ({
@@ -205,6 +217,12 @@ export default function NetWorthCard() {
                   : <TrendingDown className="w-3.5 h-3.5 text-red-500 shrink-0" />
                 }
                 <span className="text-foreground truncate max-w-[120px]">{acc.name}</span>
+                {plaidMapping[acc.id] && (
+                  <span title={`Synced with ${plaidMapping[acc.id]}`} className="px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] uppercase font-bold flex items-center gap-1">
+                    <Landmark className="w-3 h-3" />
+                    Synced
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <span className={`font-medium ${acc.type === 'asset' ? 'text-green-500' : 'text-red-500'}`}>

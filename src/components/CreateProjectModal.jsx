@@ -103,7 +103,7 @@ export default function CreateProjectModal({ isOpen, onClose, onProjectCreated }
 
             <button
               onClick={handleCopyAndClose}
-              className="w-full h-11 inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-all"
+              className="w-full vibrant-button-primary h-11"
             >
               {copied ? (
                 <>
@@ -138,7 +138,7 @@ export default function CreateProjectModal({ isOpen, onClose, onProjectCreated }
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="vibrant-input"
               placeholder="e.g. Hawaii Trip 2024"
             />
           </div>
@@ -149,7 +149,7 @@ export default function CreateProjectModal({ isOpen, onClose, onProjectCreated }
               <select
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value)}
-                className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                className="vibrant-input"
               >
                 <option value="USD">USD ($)</option>
                 <option value="EUR">EUR (€)</option>
@@ -164,7 +164,7 @@ export default function CreateProjectModal({ isOpen, onClose, onProjectCreated }
                 type="number"
                 value={budget}
                 onChange={(e) => setBudget(e.target.value)}
-                className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                className="vibrant-input"
                 placeholder="Optional limit"
                 min="0"
                 step="0.01"
@@ -176,14 +176,14 @@ export default function CreateProjectModal({ isOpen, onClose, onProjectCreated }
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="h-10 rounded-md border border-input bg-transparent px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
+                  className="vibrant-button-ghost h-10"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                  className="vibrant-button-primary h-10 disabled:opacity-50"
                 >
                   {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Create Project'}
                 </button>

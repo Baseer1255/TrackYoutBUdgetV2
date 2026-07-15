@@ -2,14 +2,14 @@
 -- This bypasses any issues with the profiles table triggers or RLS
 
 CREATE OR REPLACE FUNCTION get_user_profiles_by_ids(uids UUID[])
-RETURNS TABLE (id UUID, full_name TEXT)
+RETURNS TABLE (id UUID, full_name TEXT, email TEXT)
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, auth
 AS $$
 BEGIN
   RETURN QUERY 
-  SELECT u.id, (u.raw_user_meta_data->>'full_name')::TEXT as full_name
+  SELECT u.id, (u.raw_user_meta_data->>'full_name')::TEXT as full_name, u.email::TEXT as email
   FROM auth.users u
   WHERE u.id = ANY(uids);
 END;

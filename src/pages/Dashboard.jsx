@@ -123,7 +123,7 @@ export default function Dashboard() {
         </div>
         <button
           onClick={() => setIsModalOpen(true)}
-          className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm hover:shadow"
+          className="vibrant-button-primary"
         >
           <Plus className="mr-2 h-4 w-4" />
           New Budget
@@ -136,16 +136,25 @@ export default function Dashboard() {
           <h2 className="text-xl font-semibold tracking-tight">Your Budgets</h2>
           
           {loading ? (
-            <div className="flex h-40 items-center justify-center bg-card rounded-xl border border-border">
+            <div className="flex h-40 items-center justify-center vibrant-card">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           ) : projects.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card/50 p-12 text-center">
-              <Wallet className="mb-4 h-12 w-12 text-muted-foreground/50" />
-              <h3 className="text-lg font-semibold">No projects yet</h3>
-              <p className="text-sm text-muted-foreground mt-2 max-w-sm">
-                Create a budget project to start tracking your personal or shared expenses.
+            <div className="vibrant-card flex flex-col items-center justify-center border-dashed p-12 text-center bg-card/50">
+              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+                <Wallet className="w-8 h-8 text-primary" />
+              </div>
+              <h3 className="text-lg font-semibold">Planning a trip or a new goal?</h3>
+              <p className="text-sm text-muted-foreground mt-2 max-w-sm mb-6">
+                Create your first project to begin.
               </p>
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="vibrant-button-primary"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Create Project
+              </button>
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
@@ -153,19 +162,19 @@ export default function Dashboard() {
                 <Link
                   key={project.id}
                   to={`/project/${project.id}`}
-                  className="group relative flex flex-col rounded-xl border border-border bg-card p-5 shadow-sm transition-all hover:shadow-md hover:border-primary/50 overflow-hidden"
+                  className="vibrant-card group relative flex flex-col overflow-hidden !p-5 hover:border-primary/50"
                 >
                   <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
                   <div className="flex justify-between items-start mb-4">
-                    <h3 className="text-lg font-semibold text-card-foreground leading-tight">{project.name}</h3>
-                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 bg-secondary text-secondary-foreground rounded-full">
+                    <h3 className="text-lg font-bold text-card-foreground leading-tight">{project.name}</h3>
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 bg-secondary text-secondary-foreground rounded-lg">
                       {project.project_members?.[0]?.role || 'Member'}
                     </span>
                   </div>
                   
                   <div className="mt-auto">
                     <p className="text-sm text-muted-foreground mb-1">Total Budget</p>
-                    <p className="text-2xl font-bold text-foreground">
+                    <p className="text-2xl font-bold numeric-display text-foreground">
                       {project.total_budget ? `${project.currency} ${Number(project.total_budget).toLocaleString()}` : 'No limit'}
                     </p>
                   </div>
@@ -181,7 +190,7 @@ export default function Dashboard() {
           <NetWorthCard />
 
           {/* Leaderboard/Stats Widget */}
-          <div className="bg-card rounded-xl border border-border p-5 shadow-sm">
+          <div className="vibrant-card">
             <div className="flex items-center gap-2 mb-4 text-primary">
               <Trophy className="w-5 h-5" />
               <h3 className="font-semibold text-foreground">Top Savers</h3>
@@ -203,7 +212,7 @@ export default function Dashboard() {
           </div>
 
           {/* Recent Activity */}
-          <div className="bg-card rounded-xl border border-border p-5 shadow-sm">
+          <div className="vibrant-card">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-foreground">Recent Activity</h3>
               {isLive && (

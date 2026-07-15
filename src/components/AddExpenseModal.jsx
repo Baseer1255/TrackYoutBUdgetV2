@@ -97,7 +97,7 @@ export default function AddExpenseModal({ isOpen, onClose, projectId, onExpenseA
               onChange={(e) => setName(e.target.value)}
               required
               placeholder="e.g., Grocery Shopping"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="vibrant-input"
             />
           </div>
 
@@ -110,7 +110,7 @@ export default function AddExpenseModal({ isOpen, onClose, projectId, onExpenseA
               onChange={(e) => setAmount(e.target.value)}
               required
               placeholder="0.00"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="vibrant-input"
             />
           </div>
 
@@ -119,7 +119,7 @@ export default function AddExpenseModal({ isOpen, onClose, projectId, onExpenseA
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="vibrant-input"
             >
               <option value="General">General</option>
               <option value="Food">Food</option>
@@ -139,7 +139,7 @@ export default function AddExpenseModal({ isOpen, onClose, projectId, onExpenseA
               value={paidBy}
               onChange={(e) => setPaidBy(e.target.value)}
               placeholder="e.g., Alice"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="vibrant-input"
             />
           </div>
 
@@ -161,7 +161,7 @@ export default function AddExpenseModal({ isOpen, onClose, projectId, onExpenseA
                 <select
                   value={frequency}
                   onChange={(e) => setFrequency(e.target.value)}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="vibrant-input"
                 >
                   <option value="daily">Daily</option>
                   <option value="weekly">Weekly</option>
@@ -179,7 +179,7 @@ export default function AddExpenseModal({ isOpen, onClose, projectId, onExpenseA
                   value={recurrenceEndDate}
                   onChange={(e) => setRecurrenceEndDate(e.target.value)}
                   min={new Date().toISOString().split('T')[0]}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="vibrant-input"
                 />
                 <p className="text-xs text-muted-foreground mt-1">Leave blank to repeat indefinitely.</p>
               </div>
@@ -190,14 +190,14 @@ export default function AddExpenseModal({ isOpen, onClose, projectId, onExpenseA
             <button
               type="button"
               onClick={onClose}
-              className="rounded-md px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-secondary transition-colors"
+              className="vibrant-button-ghost"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 disabled:opacity-50 transition-colors"
+              className="vibrant-button-primary disabled:opacity-50"
             >
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Save Expense

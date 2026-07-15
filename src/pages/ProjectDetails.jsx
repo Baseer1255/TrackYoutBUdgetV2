@@ -3,13 +3,15 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { 
-  ArrowLeft, Plus, Download, Upload, Camera, Loader2, PieChart, BarChart3 
+  ArrowLeft, Plus, Download, Upload, Camera, Loader2, PieChart, BarChart3, ScanLine 
 } from 'lucide-react';
 import { PieChart as RePieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 
 import TransactionList from '../components/TransactionList';
 import ChatInsights from '../components/ChatInsights';
 import AddExpenseModal from '../components/AddExpenseModal';
+import CSVImportModal from '../components/CSVImportModal';
+import StatementToCSVModal from '../components/StatementToCSVModal';
 import SavingsGoals from '../components/SavingsGoals';
 import CollaboratorPanel from '../components/CollaboratorPanel';
 import SplitSummary from '../components/SplitSummary';
@@ -17,7 +19,6 @@ import CurrencyConverter from '../components/CurrencyConverter';
 import CategoryBudgets from '../components/CategoryBudgets';
 import RecurringList from '../components/RecurringList';
 import { exportToPDF } from '../lib/pdf';
-import { parseCSV, formatTransactionsForDb } from '../lib/csv';
 import { scanReceipt } from '../lib/ocr';
 import { useExchangeRates } from '../hooks/useExchangeRates';
 import { usePushNotifications } from '../hooks/usePushNotifications';
@@ -32,15 +33,17 @@ export default function ProjectDetails() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('transactions'); // transactions, insights
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
+  const [isCSVModalOpen, setIsCSVModalOpen] = useState(false);
+  const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
   
   const reportRef = useRef(null);
-  const fileInputRef = useRef(null);
   const receiptInputRef = useRef(null);
 
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrError, setOcrError] = useState('');
   const [editTx, setEditTx] = useState(null); // transaction being edited
   const [editLoading, setEditLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [isLive, setIsLive] = useState(false);
   const [toast, setToast] = useState(null);
 
@@ -127,33 +130,22 @@ export default function ProjectDetails() {
     }
   }, [user, id]);
 
-  const handleExportPDF = () => {
-    if (reportRef.current) {
-      exportToPDF(reportRef.current, `${project.name}-report.pdf`);
-    }
-  };
-
-  const handleCSVUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const handleExportPDF = async () => {
+    if (!reportRef.current || exporting) return;
+    setExporting(true);
+    showToast('📄 Generating PDF...');
     try {
-      setLoading(true);
-      const rawData = await parseCSV(file);
-      const formatted = formatTransactionsForDb(rawData, id, user.id);
-      
-      const { error } = await supabase.from('transactions').insert(formatted);
-      if (error) throw error;
-      
-      alert('CSV imported successfully!');
-      fetchProjectData();
-    } catch (error) {
-      alert('Error importing CSV: ' + error.message);
+      await exportToPDF(reportRef.current, `${project.name}-report.pdf`);
+      showToast('✅ PDF exported successfully!');
+    } catch (err) {
+      console.error('Export failed:', err);
+      showToast('❌ PDF export failed. Please try again.');
     } finally {
-      setLoading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      setExporting(false);
     }
   };
+
+
 
   const handleReceiptScan = async (e) => {
     const file = e.target.files?.[0];
@@ -284,25 +276,25 @@ export default function ProjectDetails() {
             <form onSubmit={handleEditSave} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">Name</label>
-                <input type="text" value={editTx.name} onChange={e => setEditTx(p => ({ ...p, name: e.target.value }))} required className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
+                <input type="text" value={editTx.name} onChange={e => setEditTx(p => ({ ...p, name: e.target.value }))} required className="vibrant-input" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">Amount</label>
-                <input type="number" step="0.01" value={editTx.amount} onChange={e => setEditTx(p => ({ ...p, amount: e.target.value }))} required className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
+                <input type="number" step="0.01" value={editTx.amount} onChange={e => setEditTx(p => ({ ...p, amount: e.target.value }))} required className="vibrant-input" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">Category</label>
-                <select value={editTx.category} onChange={e => setEditTx(p => ({ ...p, category: e.target.value }))} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary">
+                <select value={editTx.category} onChange={e => setEditTx(p => ({ ...p, category: e.target.value }))} className="vibrant-input">
                   {['General','Food','Transport','Housing','Entertainment','Utilities','Health','Shopping'].map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">Paid By</label>
-                <input type="text" value={editTx.paid_by || ''} onChange={e => setEditTx(p => ({ ...p, paid_by: e.target.value }))} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
+                <input type="text" value={editTx.paid_by || ''} onChange={e => setEditTx(p => ({ ...p, paid_by: e.target.value }))} className="vibrant-input" />
               </div>
               <div className="pt-2 flex justify-end gap-3">
-                <button type="button" onClick={() => setEditTx(null)} className="rounded-md px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-secondary transition-colors">Cancel</button>
-                <button type="submit" disabled={editLoading} className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 disabled:opacity-50 transition-colors">
+                <button type="button" onClick={() => setEditTx(null)} className="vibrant-button-ghost">Cancel</button>
+                <button type="submit" disabled={editLoading} className="vibrant-button-primary disabled:opacity-50">
                   {editLoading ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
@@ -334,31 +326,33 @@ export default function ProjectDetails() {
         </div>
         
         <div className="flex flex-wrap items-center gap-2">
-          {/* CSV Import Hidden Input */}
-          <input type="file" accept=".csv" className="hidden" ref={fileInputRef} onChange={handleCSVUpload} />
-          <button onClick={() => fileInputRef.current?.click()} className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-transparent px-3 text-sm font-medium hover:bg-accent transition-colors" title="Import CSV">
+          <button onClick={() => setIsConvertModalOpen(true)} className="vibrant-button-ghost" title="Convert bank statement image to CSV">
+            <ScanLine className="mr-2 h-4 w-4" /> Convert to CSV
+          </button>
+
+          <button onClick={() => setIsCSVModalOpen(true)} className="vibrant-button-ghost" title="Import Bank Statement">
             <Upload className="mr-2 h-4 w-4" /> Import CSV
           </button>
 
           {/* Receipt Scanner Hidden Input */}
-          <input type="file" accept="image/*" capture="environment" className="hidden" ref={receiptInputRef} onChange={handleReceiptScan} />
-          <button onClick={() => receiptInputRef.current?.click()} disabled={ocrLoading} className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-transparent px-3 text-sm font-medium hover:bg-accent transition-colors disabled:opacity-50" title="Scan Receipt">
+          <input type="file" accept="image/png, image/jpeg, image/jpg, image/webp, image/bmp, image/tiff" className="hidden" ref={receiptInputRef} onChange={handleReceiptScan} />
+          <button onClick={() => receiptInputRef.current?.click()} disabled={ocrLoading} className="vibrant-button-ghost disabled:opacity-50" title="Scan Receipt — Accepts PNG, JPEG, WebP, BMP, TIFF">
             {ocrLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Camera className="mr-2 h-4 w-4" />}
             Scan
           </button>
 
-          <button onClick={handleExportPDF} className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-transparent px-3 text-sm font-medium hover:bg-accent transition-colors" title="Export PDF">
-            <Download className="mr-2 h-4 w-4" /> Export
+          <button onClick={handleExportPDF} disabled={exporting} className="vibrant-button-ghost disabled:opacity-50" title="Export PDF">
+            {exporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />} Export
           </button>
           
-          <button onClick={() => setIsExpenseModalOpen(true)} className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 shadow-sm transition-colors">
+          <button onClick={() => setIsExpenseModalOpen(true)} className="vibrant-button-primary">
             <Plus className="mr-2 h-4 w-4" /> Expense
           </button>
 
           {isOwner && (
             <button 
               onClick={handleDeleteProject} 
-              className="inline-flex h-9 items-center justify-center rounded-md bg-destructive/10 text-destructive border border-destructive/20 hover:bg-destructive hover:text-destructive-foreground px-3 text-sm font-medium shadow-sm transition-colors ml-2" 
+              className="inline-flex h-9 items-center justify-center rounded-lg bg-destructive/10 text-destructive border border-destructive/20 hover:bg-destructive hover:text-destructive-foreground px-4 py-2 text-sm font-medium shadow-sm transition-all ml-2" 
               title="Delete Project"
             >
               Delete Project
@@ -374,15 +368,15 @@ export default function ProjectDetails() {
           
           {/* Quick Stats */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+            <div className="vibrant-card !p-5">
               <p className="text-sm font-medium text-muted-foreground">Total Spent</p>
-              <h3 className="text-3xl font-bold text-card-foreground mt-2">
+              <h3 className="text-3xl font-bold text-card-foreground mt-2 numeric-display">
                 {project.currency} {totalSpent.toLocaleString()}
               </h3>
             </div>
-            <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+            <div className="vibrant-card !p-5">
               <p className="text-sm font-medium text-muted-foreground">Remaining</p>
-              <h3 className={`text-3xl font-bold mt-2 ${project.total_budget && (project.total_budget - totalSpent) < 0 ? 'text-destructive' : 'text-primary'}`}>
+              <h3 className={`text-3xl font-bold mt-2 numeric-display ${project.total_budget && (project.total_budget - totalSpent) < 0 ? 'text-destructive' : 'text-primary'}`}>
                 {project.total_budget 
                   ? `${project.currency} ${(project.total_budget - totalSpent).toLocaleString()}` 
                   : 'N/A'}
@@ -392,7 +386,7 @@ export default function ProjectDetails() {
 
           {/* Budget Progress Bar */}
           {budgetPct !== null && (
-            <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+            <div className="vibrant-card !p-5">
               <div className="flex justify-between items-center mb-2">
                 <p className="text-sm font-medium text-muted-foreground">Budget Used</p>
                 <p className={`text-sm font-bold ${budgetPct >= 90 ? 'text-red-500' : budgetPct >= 70 ? 'text-yellow-500' : 'text-green-500'}`}>{budgetPct.toFixed(1)}%</p>
@@ -457,7 +451,7 @@ export default function ProjectDetails() {
           {activeTab === 'transactions' ? (
             <div className="space-y-6">
               {/* Spend by Category Chart */}
-              <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+              <div className="vibrant-card">
                 <h3 className="font-semibold text-foreground flex items-center gap-2 mb-4">
                   <PieChart className="h-4 w-4 text-primary" />
                   Category Split
@@ -482,7 +476,7 @@ export default function ProjectDetails() {
               </div>
 
               {/* Monthly Trend Chart */}
-              <div className="rounded-xl border border-border bg-card p-5 shadow-sm" id="monthly-trend-chart">
+              <div className="vibrant-card" id="monthly-trend-chart">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="font-semibold text-foreground flex items-center gap-2">
                     <BarChart3 className="h-4 w-4 text-primary" />
@@ -560,6 +554,21 @@ export default function ProjectDetails() {
           // Also send a browser push notification
           if (notify) notify('Budget Alert 🚨', `${category} is approaching its spending limit!`);
         }}
+      />
+
+      <CSVImportModal
+        isOpen={isCSVModalOpen}
+        onClose={() => setIsCSVModalOpen(false)}
+        projectId={id}
+        onImportComplete={() => {
+          fetchProjectData();
+          showToast('✅ Bank statement imported successfully!');
+        }}
+      />
+
+      <StatementToCSVModal
+        isOpen={isConvertModalOpen}
+        onClose={() => setIsConvertModalOpen(false)}
       />
     </div>
   );

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Target, Plus, TrendingUp, Loader2, DollarSign } from 'lucide-react';
+import { Target, Plus, TrendingUp, Loader2, DollarSign, Trophy } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 export default function SavingsGoals({ projectId, projectCurrency = '$' }) {
@@ -109,21 +109,21 @@ export default function SavingsGoals({ projectId, projectCurrency = '$' }) {
   }
 
   return (
-    <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden flex flex-col h-[500px]">
-      <div className="p-4 border-b border-border flex items-center justify-between bg-secondary/30">
-        <h3 className="font-semibold flex items-center gap-2">
+    <div className="vibrant-card overflow-hidden flex flex-col h-[500px]">
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="font-semibold flex items-center gap-2 text-foreground">
           <Target className="w-5 h-5 text-primary" />
           Savings Goals
         </h3>
         <button
           onClick={() => setShowAddForm(!showAddForm)}
-          className="p-1.5 bg-primary/10 text-primary rounded-md hover:bg-primary/20 transition-colors"
+          className="p-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors"
         >
           <Plus className="w-4 h-4" />
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto space-y-4 pr-1">
         {showAddForm && (
           <form onSubmit={handleCreateGoal} className="p-4 rounded-lg bg-secondary/50 border border-border space-y-3 mb-4">
             <h4 className="text-sm font-medium mb-2">New Savings Goal</h4>
@@ -132,7 +132,7 @@ export default function SavingsGoals({ projectId, projectCurrency = '$' }) {
               placeholder="Goal Name (e.g., Vacation)"
               value={newGoal.name}
               onChange={e => setNewGoal({ ...newGoal, name: e.target.value })}
-              className="w-full text-sm rounded-md border border-input bg-background px-3 py-2"
+              className="vibrant-input"
               required
             />
             <div className="relative">
@@ -142,15 +142,15 @@ export default function SavingsGoals({ projectId, projectCurrency = '$' }) {
                 placeholder="Target Amount"
                 value={newGoal.target_amount}
                 onChange={e => setNewGoal({ ...newGoal, target_amount: e.target.value })}
-                className="w-full text-sm rounded-md border border-input bg-background pl-9 pr-3 py-2"
+                className="vibrant-input pl-9"
                 min="1"
                 step="0.01"
                 required
               />
             </div>
             <div className="flex justify-end gap-2 pt-2">
-              <button type="button" onClick={() => setShowAddForm(false)} className="text-xs px-3 py-1.5 hover:bg-accent rounded-md">Cancel</button>
-              <button type="submit" disabled={isSubmitting} className="text-xs bg-primary text-primary-foreground px-3 py-1.5 rounded-md hover:bg-primary/90">
+              <button type="button" onClick={() => setShowAddForm(false)} className="vibrant-button-ghost">Cancel</button>
+              <button type="submit" disabled={isSubmitting} className="vibrant-button-primary">
                 {isSubmitting ? 'Saving...' : 'Create Goal'}
               </button>
             </div>
@@ -158,10 +158,12 @@ export default function SavingsGoals({ projectId, projectCurrency = '$' }) {
         )}
 
         {goals.length === 0 && !showAddForm ? (
-          <div className="h-full flex flex-col items-center justify-center text-center p-6 opacity-60">
-            <Target className="w-10 h-10 mb-3 text-muted-foreground" />
-            <p className="text-sm">No savings goals yet.</p>
-            <p className="text-xs mt-1">Click the + icon to create one!</p>
+          <div className="h-full flex flex-col items-center justify-center text-center py-12">
+            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+              <Trophy className="w-8 h-8 text-primary" />
+            </div>
+            <p className="text-lg font-semibold text-foreground">Dreaming big?</p>
+            <p className="text-sm text-muted-foreground mt-1 max-w-[200px]">Set a savings goal and watch your progress soar.</p>
           </div>
         ) : (
           goals.map(goal => {

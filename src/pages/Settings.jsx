@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { User, Settings as SettingsIcon, Save, Loader2, LogOut, Moon, Sun } from 'lucide-react';
+import { User, Settings as SettingsIcon, Save, Loader2, LogOut, Moon, Sun, Landmark, RefreshCw, Unplug } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-
 export default function Settings() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
@@ -19,27 +18,24 @@ export default function Settings() {
   );
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const fetchProfileAndPlaid = async () => {
       try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
+        const profileRes = await supabase.from('profiles').select('*').eq('id', user.id).single();
           
-        if (error) throw error;
-        setProfile({ ...profile, full_name: data.full_name || '' });
+        if (profileRes.error) throw profileRes.error;
+        setProfile({ ...profile, full_name: profileRes.data.full_name || '' });
       } catch (err) {
-        console.error('Error fetching profile:', err);
+        console.error('Error fetching data:', err);
       } finally {
         setLoading(false);
       }
     };
     
     if (user) {
-      fetchProfile();
+      fetchProfileAndPlaid();
     }
   }, [user]);
+
 
   const handleSaveProfile = async (e) => {
     e.preventDefault();
@@ -97,8 +93,8 @@ export default function Settings() {
       <div className="space-y-6">
         
         {/* Profile Card */}
-        <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-border bg-secondary/30">
+        <div className="vibrant-card">
+          <div className="mb-4">
             <h2 className="font-semibold text-foreground flex items-center gap-2">
               <User className="w-4 h-4" />
               Profile Details
@@ -115,7 +111,7 @@ export default function Settings() {
                 type="email" 
                 value={profile.email} 
                 disabled 
-                className="w-full rounded-md border border-input bg-secondary px-3 py-2 text-sm text-muted-foreground opacity-70"
+                className="vibrant-input opacity-70"
               />
               <p className="text-xs text-muted-foreground mt-1">Email cannot be changed.</p>
             </div>
@@ -127,7 +123,7 @@ export default function Settings() {
                 value={profile.full_name}
                 onChange={(e) => setProfile({ ...profile, full_name: e.target.value })}
                 placeholder="e.g., John Doe"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                className="vibrant-input"
               />
             </div>
             
@@ -135,7 +131,7 @@ export default function Settings() {
               <button 
                 type="submit" 
                 disabled={saving}
-                className="bg-primary text-primary-foreground text-sm font-medium px-4 py-2 rounded-md hover:bg-primary/90 flex items-center gap-2 disabled:opacity-50"
+                className="vibrant-button-primary disabled:opacity-50"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 Save Changes
@@ -145,14 +141,14 @@ export default function Settings() {
         </div>
         
         {/* Preferences Card */}
-        <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-border bg-secondary/30">
+        <div className="vibrant-card mt-8">
+          <div className="mb-4">
             <h2 className="font-semibold text-foreground flex items-center gap-2">
               <SettingsIcon className="w-4 h-4" />
               Preferences
             </h2>
           </div>
-          <div className="p-6">
+          <div>
             <div className="flex items-center justify-between">
               <div>
                 <h4 className="font-medium text-foreground text-sm">Appearance</h4>
@@ -160,7 +156,7 @@ export default function Settings() {
               </div>
               <button 
                 onClick={toggleTheme}
-                className="p-2 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors"
+                className="vibrant-button-ghost"
               >
                 {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </button>
@@ -168,28 +164,28 @@ export default function Settings() {
           </div>
         </div>
         
+
         {/* Danger Zone */}
-        <div className="bg-card rounded-xl border border-destructive/20 shadow-sm overflow-hidden mt-8">
-          <div className="p-4 border-b border-destructive/20 bg-destructive/5">
+        <div className="vibrant-card border-destructive/20 mt-8">
+          <div className="mb-4">
             <h2 className="font-semibold text-destructive flex items-center gap-2">
               Danger Zone
             </h2>
           </div>
-          <div className="p-6 flex items-center justify-between">
+          <div className="flex items-center justify-between">
             <div>
               <h4 className="font-medium text-foreground text-sm">Sign Out</h4>
               <p className="text-xs text-muted-foreground mt-0.5">End your current session.</p>
             </div>
             <button 
               onClick={handleLogout}
-              className="bg-destructive/10 text-destructive text-sm font-medium px-4 py-2 rounded-md hover:bg-destructive hover:text-destructive-foreground transition-colors flex items-center gap-2"
+              className="bg-destructive/10 text-destructive text-sm font-medium px-4 py-2 rounded-lg hover:bg-destructive hover:text-destructive-foreground transition-colors flex items-center gap-2"
             >
               <LogOut className="w-4 h-4" />
               Sign Out
             </button>
           </div>
         </div>
-
       </div>
     </div>
   );

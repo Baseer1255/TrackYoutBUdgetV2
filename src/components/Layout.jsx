@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { LayoutDashboard, Settings, LogOut, Menu, X, Sparkles, Moon, Sun, Zap, User } from 'lucide-react';
+import { LayoutDashboard, Settings, LogOut, Menu, X, Sparkles, Moon, Sun, Zap, User, ArrowLeft } from 'lucide-react';
 
 export default function Layout({ children }) {
   const { user, signOut } = useAuth();
@@ -138,7 +138,7 @@ export default function Layout({ children }) {
   return (
     <div className="min-h-screen flex bg-background text-foreground">
       {/* Mobile Sidebar Overlay */}
-      {sidebarOpen && (
+      {sidebarOpen && !location.pathname.startsWith('/project/') && (
         <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
@@ -146,8 +146,9 @@ export default function Layout({ children }) {
       )}
 
       {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transform transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="h-full flex flex-col">
+      {!location.pathname.startsWith('/project/') && (
+        <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transform transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+          <div className="h-full flex flex-col">
           <div className="flex items-center justify-between p-4 border-b border-border">
             <Link to="/" className="text-xl font-bold text-primary flex items-center gap-2">
               <Sparkles className="w-6 h-6" />
@@ -225,17 +226,25 @@ export default function Layout({ children }) {
           </div>
         </div>
       </aside>
+      )}
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0">
         {/* Top Navbar */}
         <header className="sticky top-0 z-30 flex items-center justify-between p-4 bg-background/80 backdrop-blur-md border-b border-border gap-3">
-          <button
-            className="p-2 -ml-2 rounded-md lg:hidden text-muted-foreground hover:bg-secondary flex-shrink-0"
-            onClick={() => setSidebarOpen(true)}
-          >
-            <Menu className="w-6 h-6" />
-          </button>
+          {location.pathname.startsWith('/project/') ? (
+            <Link to="/" className="flex items-center gap-2 p-2 -ml-2 rounded-md text-muted-foreground hover:bg-secondary hover:text-secondary-foreground transition-colors">
+              <ArrowLeft className="w-5 h-5" />
+              <span className="hidden sm:inline text-sm font-medium">Dashboard</span>
+            </Link>
+          ) : (
+            <button
+              className="p-2 -ml-2 rounded-md lg:hidden text-muted-foreground hover:bg-secondary flex-shrink-0"
+              onClick={() => setSidebarOpen(true)}
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+          )}
 
           {/* Magic Command Bar */}
           <form onSubmit={handleMagicCommand} className="flex-1 max-w-xl mx-auto relative group">
